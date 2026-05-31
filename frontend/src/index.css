@@ -1,0 +1,163 @@
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  background: #020408;
+  overflow-x: hidden;
+}
+
+/* ── Ripple ──────────────────────────────────────────────────────────────── */
+@keyframes ripple {
+  0%   { transform: scale(0); opacity: 0.5; }
+  100% { transform: scale(4); opacity: 0; }
+}
+.ripple {
+  position: absolute; border-radius: 50%;
+  background: rgba(99,102,241,0.5);
+  animation: ripple 600ms linear forwards;
+  pointer-events: none; transform-origin: center;
+}
+
+/* ── Skeleton shimmer ────────────────────────────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg,rgba(99,102,241,0.05)25%,rgba(99,102,241,0.15)50%,rgba(99,102,241,0.05)75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+/* ── Glass card fallback ─────────────────────────────────────────────────── */
+@supports not (backdrop-filter: blur(1px)) {
+  .glass-card { background-color: rgba(5,10,25,0.92) !important; }
+}
+
+/* ── Spotlight card ──────────────────────────────────────────────────────── */
+.spotlight-overlay { position:absolute;inset:0;border-radius:inherit;pointer-events:none;transition:opacity 350ms ease; }
+
+.spotlight-card {
+  --spotlight-x: 50%; --spotlight-y: 50%;
+  --spotlight-opacity: 0;
+  --spotlight-color: rgba(99,102,241,0.25);
+  --spotlight-size: 300px;
+  position: relative; overflow: hidden;
+}
+.spotlight-card::before {
+  content:''; position:absolute; inset:0; border-radius:inherit;
+  pointer-events:none; opacity:var(--spotlight-opacity);
+  transition:opacity 350ms ease;
+  background:radial-gradient(var(--spotlight-size) circle at var(--spotlight-x) var(--spotlight-y),var(--spotlight-color),rgba(139,92,246,0.08) 45%,transparent 70%);
+  z-index:1;
+}
+.spotlight-card > * { position:relative; z-index:2; }
+.spotlight-blue   { --spotlight-color: rgba(59,130,246,0.28); }
+.spotlight-purple { --spotlight-color: rgba(168,85,247,0.28); }
+.spotlight-pink   { --spotlight-color: rgba(236,72,153,0.28); }
+.spotlight-cyan   { --spotlight-color: rgba(6,182,212,0.28); }
+.spotlight-green  { --spotlight-color: rgba(16,185,129,0.28); }
+.spotlight-orange { --spotlight-color: rgba(249,115,22,0.28); }
+
+/* ── Float animations ────────────────────────────────────────────────────── */
+@keyframes float {
+  0%,100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+@keyframes floatSlow {
+  0%,100% { transform: translateY(0) rotate(0deg); }
+  33%      { transform: translateY(-4px) rotate(1deg); }
+  66%      { transform: translateY(-8px) rotate(-1deg); }
+}
+.float-icon { animation: float 3s ease-in-out infinite; }
+.float-slow { animation: floatSlow 5s ease-in-out infinite; }
+
+/* ── Neon pulse ──────────────────────────────────────────────────────────── */
+@keyframes neonPulse {
+  0%,100% { box-shadow: 0 0 6px currentColor, 0 0 16px currentColor, 0 0 32px currentColor; }
+  50%      { box-shadow: 0 0 12px currentColor, 0 0 32px currentColor, 0 0 64px currentColor; }
+}
+@keyframes neonPulseText {
+  0%,100% { text-shadow: 0 0 8px currentColor, 0 0 20px currentColor; }
+  50%      { text-shadow: 0 0 16px currentColor, 0 0 40px currentColor, 0 0 60px currentColor; }
+}
+.neon-pulse      { animation: neonPulse 2s ease-in-out infinite; }
+.neon-pulse-text { animation: neonPulseText 2s ease-in-out infinite; }
+
+/* ── Glowing ring ────────────────────────────────────────────────────────── */
+@keyframes ringRotate { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+@keyframes ringPulse  { 0%,100%{opacity:.8;filter:blur(0)} 50%{opacity:1;filter:blur(1px)} }
+.ring-rotate { animation: ringRotate 3s linear infinite; }
+.ring-pulse  { animation: ringPulse 2s ease-in-out infinite; }
+
+/* ── Energy burst ────────────────────────────────────────────────────────── */
+@keyframes energyBurst {
+  0%,100% { transform:scale(1); }
+  50%      { transform:scale(1.08); }
+}
+.energy-burst { animation: energyBurst 1.5s ease-in-out infinite; }
+
+/* ── Light streak ────────────────────────────────────────────────────────── */
+@keyframes lightStreak {
+  0%   { transform:translateX(-120%) skewX(-20deg); opacity:0; }
+  8%   { opacity:.7; }
+  92%  { opacity:.7; }
+  100% { transform:translateX(220%) skewX(-20deg); opacity:0; }
+}
+.light-streak {
+  position:absolute; height:1px; width:35%;
+  background:linear-gradient(90deg,transparent,rgba(99,102,241,.9),rgba(168,85,247,.7),rgba(6,182,212,.5),transparent);
+  animation:lightStreak 5s ease-in-out infinite;
+  pointer-events:none; filter:blur(.5px);
+}
+
+/* ── Cursor trail ────────────────────────────────────────────────────────── */
+.cursor-trail {
+  position:fixed; border-radius:50%;
+  background:radial-gradient(circle,rgba(168,85,247,.9),rgba(99,102,241,.4));
+  pointer-events:none; z-index:9999;
+  transform:translate(-50%,-50%);
+  box-shadow:0 0 12px rgba(168,85,247,.8),0 0 24px rgba(99,102,241,.4);
+  transition:width .1s,height .1s;
+}
+
+/* ── Neon card glow ──────────────────────────────────────────────────────── */
+.neon-card-blue   { box-shadow:0 0 0 1px rgba(59,130,246,.3),0 0 20px rgba(59,130,246,.1),inset 0 0 20px rgba(59,130,246,.03); }
+.neon-card-purple { box-shadow:0 0 0 1px rgba(168,85,247,.3),0 0 20px rgba(168,85,247,.1),inset 0 0 20px rgba(168,85,247,.03); }
+.neon-card-pink   { box-shadow:0 0 0 1px rgba(236,72,153,.3),0 0 20px rgba(236,72,153,.1),inset 0 0 20px rgba(236,72,153,.03); }
+.neon-card-cyan   { box-shadow:0 0 0 1px rgba(6,182,212,.3),0 0 20px rgba(6,182,212,.1),inset 0 0 20px rgba(6,182,212,.03); }
+.neon-card-green  { box-shadow:0 0 0 1px rgba(16,185,129,.3),0 0 20px rgba(16,185,129,.1),inset 0 0 20px rgba(16,185,129,.03); }
+.neon-card-blue:hover   { box-shadow:0 0 0 1px rgba(59,130,246,.6),0 0 40px rgba(59,130,246,.25),0 0 80px rgba(59,130,246,.1),inset 0 0 30px rgba(59,130,246,.05); }
+.neon-card-purple:hover { box-shadow:0 0 0 1px rgba(168,85,247,.6),0 0 40px rgba(168,85,247,.25),0 0 80px rgba(168,85,247,.1),inset 0 0 30px rgba(168,85,247,.05); }
+.neon-card-pink:hover   { box-shadow:0 0 0 1px rgba(236,72,153,.6),0 0 40px rgba(236,72,153,.25),0 0 80px rgba(236,72,153,.1),inset 0 0 30px rgba(236,72,153,.05); }
+.neon-card-cyan:hover   { box-shadow:0 0 0 1px rgba(6,182,212,.6),0 0 40px rgba(6,182,212,.25),0 0 80px rgba(6,182,212,.1),inset 0 0 30px rgba(6,182,212,.05); }
+.neon-card-green:hover  { box-shadow:0 0 0 1px rgba(16,185,129,.6),0 0 40px rgba(16,185,129,.25),0 0 80px rgba(16,185,129,.1),inset 0 0 30px rgba(16,185,129,.05); }
+
+/* ── Holographic shimmer ─────────────────────────────────────────────────── */
+@keyframes holoShimmer {
+  0%   { background-position:-200% center; }
+  100% { background-position: 200% center; }
+}
+.holo-card::after {
+  content:''; position:absolute; inset:0; border-radius:inherit;
+  background:linear-gradient(105deg,transparent 20%,rgba(255,255,255,.03)30%,rgba(99,102,241,.06)40%,rgba(168,85,247,.04)50%,rgba(255,255,255,.03)60%,transparent 70%);
+  background-size:200% 100%;
+  animation:holoShimmer 4s linear infinite;
+  pointer-events:none; z-index:0;
+}
+
+/* ── Neon text ───────────────────────────────────────────────────────────── */
+.text-neon-blue   { color:#60a5fa; text-shadow:0 0 10px rgba(96,165,250,.8),0 0 30px rgba(59,130,246,.4); }
+.text-neon-purple { color:#c084fc; text-shadow:0 0 10px rgba(192,132,252,.8),0 0 30px rgba(168,85,247,.4); }
+.text-neon-pink   { color:#f472b6; text-shadow:0 0 10px rgba(244,114,182,.8),0 0 30px rgba(236,72,153,.4); }
+.text-neon-cyan   { color:#22d3ee; text-shadow:0 0 10px rgba(34,211,238,.8),0 0 30px rgba(6,182,212,.4); }
+.text-neon-green  { color:#34d399; text-shadow:0 0 10px rgba(52,211,153,.8),0 0 30px rgba(16,185,129,.4); }

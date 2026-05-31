@@ -1,0 +1,17 @@
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+httpx
+python-dotenv
+hypothesis
+pytest
+pytest-asyncio
+anyio
+pypdf
+python-docx
+openpyxl
+pandas
+python-multipart
+python-jose[cryptography]
+passlib[bcrypt]
