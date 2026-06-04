@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: semantic-validator-api
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_API_URL
+        value: https://generativelanguage.googleapis.com/v1beta/models
+      - key: AI_MODEL
+        value: gemini-2.0-flash
+      - key: AI_TIMEOUT_SECONDS
+        value: 30
+      - key: CORS_ORIGIN
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: JWT_EXPIRE_MINUTES
+        value: 60
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false

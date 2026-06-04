@@ -187,7 +187,8 @@ npm run dev          # Vite dev server with /api proxy to :5000
 # Runs on http://localhost:5173
 ```
 
-The Vite dev proxy forwards all `/api/*` requests to `http://localhost:5000`, so no CORS issues during development.
+The Vite dev proxy forwards all `/api/*` requests to `backend
+`, so no CORS issues during development.
 
 ---
 

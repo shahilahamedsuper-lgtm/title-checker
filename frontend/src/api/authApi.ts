@@ -67,3 +67,12 @@ export async function changePassword(current_password: string, new_password: str
     throw new Error(extractError(e, "Failed to change password."));
   }
 }
+
+export async function register(email: string, name: string, password: string): Promise<TokenResponse> {
+  try {
+    const res = await apiClient.post<TokenResponse>("/api/auth/register", { email, name, password });
+    return res.data;
+  } catch (e) {
+    throw new Error(extractError(e, "Registration failed."));
+  }
+}

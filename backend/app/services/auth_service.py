@@ -1,8 +1,9 @@
 """
-Auth service — demo implementation using in-memory stores.
+Auth service — backed by Supabase PostgreSQL.
 
-IMPORTANT: No hashing happens at module import time.
-The demo user's password is hashed lazily on first access via _ensure_seeded().
+Uses supabase-py v2 to query the `users` table.
+OTP store remains in-memory (no database needed for short-lived codes).
+JWT helpers are unchanged.
 """
 import random
 import string
@@ -11,8 +12,23 @@ from datetime import datetime, timedelta, timezone
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from fastapi import HTTPException, status
 
 from app.config import settings
+
+# ── Supabase client (singleton) ───────────────────────────────────────────────
+
+from supabase import create_client, Client
+
+_supabase: Client | None = None
+
+
+def get_supabase() -> Client:
+    global _supabase
+    if _supabase is None:
+        _supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+    return _supabase
+
 
 # ── Password hashing ──────────────────────────────────────────────────────────
 
@@ -27,30 +43,6 @@ def hash_password(plain: str) -> str:
 def verify_password(plain: str, hashed: str) -> bool:
     """Verify a plaintext password against a bcrypt hash."""
     return _pwd_ctx.verify(plain, hashed)
-
-
-# ── In-memory user store ──────────────────────────────────────────────────────
-# Populated lazily by _ensure_seeded() — NO hashing at import time.
-
-_USERS: dict[str, dict] = {}
-_SEEDED = False
-
-
-def _ensure_seeded() -> None:
-    """
-    Seed the demo user on first call.
-    Hashing happens here (at request time), never at import time.
-    """
-    global _SEEDED
-    if _SEEDED:
-        return
-    _SEEDED = True
-    _USERS["shahil@gmail.com"] = {
-        "id": "usr_demo",
-        "email": "shahil@gmail.com",
-        "name": "Shahil",
-        "hashed_password": hash_password("shahil98"),
-    }
 
 
 # ── In-memory OTP store  {email: (otp, expires_at)} ──────────────────────────
@@ -77,39 +69,77 @@ def decode_token(token: str) -> dict:
     return jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
 
 
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _row_to_user(row: dict) -> dict:
+    """Normalize a Supabase row into the shape the rest of the app expects."""
+    return {
+        "id": row["id"],
+        "email": row["email"],
+        "name": row["name"],
+        "hashed_password": row.get("password_hash", ""),
+    }
+
+
 # ── Public API ────────────────────────────────────────────────────────────────
 
 def login(email: str, password: str) -> dict | None:
     """Returns user dict on success, None on failure."""
-    _ensure_seeded()
-    user = _USERS.get(email.lower())
-    if not user:
+    try:
+        res = get_supabase().table("users").select("*").eq("email", email.lower()).execute()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Database error during login: {exc}",
+        )
+    rows = res.data or []
+    if not rows:
         return None
+    user = _row_to_user(rows[0])
     if not verify_password(password, user["hashed_password"]):
         return None
     return user
 
 
+def register_user(email: str, name: str, password: str) -> dict:
+    """Creates a new user in Supabase. Raises HTTPException on duplicate email."""
+    hashed = hash_password(password)
+    try:
+        res = (
+            get_supabase()
+            .table("users")
+            .insert({"email": email.lower(), "name": name, "password_hash": hashed})
+            .execute()
+        )
+    except Exception as exc:
+        # supabase-py raises on unique constraint violations and other DB errors
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Registration failed: {exc}",
+        )
+    rows = res.data or []
+    if not rows:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="User created but no data returned.",
+        )
+    return _row_to_user(rows[0])
+
+
 def send_otp(email: str) -> str:
-    """Generates and stores an OTP. Returns the OTP (caller should email it)."""
-    _ensure_seeded()
+    """
+    Generates and stores an OTP.
+    Returns the OTP (caller should email it).
+    OTP store is in-memory — no Supabase call needed here.
+    """
     otp = _generate_otp()
     expires = datetime.now(timezone.utc) + timedelta(seconds=OTP_TTL_SECONDS)
     _OTP_STORE[email.lower()] = (otp, expires)
-    # Auto-register unknown emails on first OTP request
-    if email.lower() not in _USERS:
-        _USERS[email.lower()] = {
-            "id": f"usr_{uuid.uuid4().hex[:8]}",
-            "email": email.lower(),
-            "name": email.split("@")[0].capitalize(),
-            "hashed_password": hash_password(uuid.uuid4().hex),
-        }
     return otp
 
 
 def verify_otp(email: str, otp: str) -> dict | None:
     """Returns user dict if OTP is valid and not expired, else None."""
-    _ensure_seeded()
     entry = _OTP_STORE.get(email.lower())
     if not entry:
         return None
@@ -120,30 +150,75 @@ def verify_otp(email: str, otp: str) -> dict | None:
     if stored_otp != otp:
         return None
     del _OTP_STORE[email.lower()]
-    return _USERS.get(email.lower())
+    # Look up (or lazily create) the user in Supabase
+    return get_user_by_email(email)
+
+
+def get_user_by_email(email: str) -> dict | None:
+    """Fetch user from Supabase by email. Returns None if not found."""
+    try:
+        res = (
+            get_supabase()
+            .table("users")
+            .select("*")
+            .eq("email", email.lower())
+            .execute()
+        )
+    except Exception:
+        return None
+    rows = res.data or []
+    return _row_to_user(rows[0]) if rows else None
 
 
 def get_user_by_id(user_id: str) -> dict | None:
-    _ensure_seeded()
-    for u in _USERS.values():
-        if u["id"] == user_id:
-            return u
-    return None
+    """Fetch user from Supabase by primary key. Returns None if not found."""
+    try:
+        res = (
+            get_supabase()
+            .table("users")
+            .select("*")
+            .eq("id", user_id)
+            .execute()
+        )
+    except Exception:
+        return None
+    rows = res.data or []
+    return _row_to_user(rows[0]) if rows else None
 
 
 def update_profile(user_id: str, name: str) -> dict | None:
-    user = get_user_by_id(user_id)
-    if not user:
-        return None
-    user["name"] = name
-    return user
+    """Update display name in Supabase. Returns updated user dict or None."""
+    try:
+        res = (
+            get_supabase()
+            .table("users")
+            .update({"name": name})
+            .eq("id", user_id)
+            .execute()
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Database error updating profile: {exc}",
+        )
+    rows = res.data or []
+    return _row_to_user(rows[0]) if rows else None
 
 
 def change_password(user_id: str, current_password: str, new_password: str) -> bool:
+    """Verify current password then update hash in Supabase."""
     user = get_user_by_id(user_id)
     if not user:
         return False
     if not verify_password(current_password, user["hashed_password"]):
         return False
-    user["hashed_password"] = hash_password(new_password)
+    try:
+        get_supabase().table("users").update(
+            {"password_hash": hash_password(new_password)}
+        ).eq("id", user_id).execute()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Database error updating password: {exc}",
+        )
     return True

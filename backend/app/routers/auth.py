@@ -4,6 +4,7 @@ from app.dependencies import get_current_user
 from app.models.schemas import (
     ChangePasswordRequest,
     LoginRequest,
+    RegisterRequest,
     SendOTPRequest,
     TokenResponse,
     UpdateProfileRequest,
@@ -84,3 +85,20 @@ async def change_password(
     if not ok:
         raise HTTPException(status_code=400, detail="Current password is incorrect")
     return {"message": "Password updated successfully"}
+
+
+@router.post("/register", response_model=TokenResponse)
+async def register(body: RegisterRequest):
+    # Check if email is already taken
+    existing = auth_service.get_user_by_email(body.email)
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An account with this email already exists.",
+        )
+    user = auth_service.register_user(body.email, body.name, body.password)
+    token = create_access_token(user["id"], user["email"])
+    return TokenResponse(
+        access_token=token,
+        user=UserProfile(id=user["id"], email=user["email"], name=user["name"]),
+    )

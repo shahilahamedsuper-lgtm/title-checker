@@ -11,7 +11,7 @@ import axios from "axios";
 const TOKEN_KEY = "sv_token";
 
 export const apiClient = axios.create({
-  baseURL: "",
+  baseURL: import.meta.env.VITE_API_URL ?? "",
   timeout: 60_000,
 });
 
